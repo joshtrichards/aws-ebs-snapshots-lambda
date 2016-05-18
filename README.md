@@ -1,6 +1,7 @@
 Based on:
 	- Code from Ryan S. Brown
 		- https://serverlesscode.com/post/lambda-schedule-ebs-snapshot-backups/
+		- https://serverlesscode.com/post/lambda-schedule-ebs-snapshot-backups-2/
 
 Related:
 
@@ -14,4 +15,5 @@ Files:
 Functionality:
 
 	- simple snapshots
-	- *no* support for expiration
+	- expiration of old snapshots
+	- configuration of retention period on a per instance basis
