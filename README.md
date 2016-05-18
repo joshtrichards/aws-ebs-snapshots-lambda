@@ -17,3 +17,4 @@ Functionality:
 	- simple snapshots
 	- expiration of old snapshots
 	- configuration of retention period on a per instance basis
+	- ability to manually tag select snapshots to be kept indefinitely regardless of retention configuration

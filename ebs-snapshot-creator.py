@@ -7,7 +7,7 @@ ec = boto3.client('ec2')
 def lambda_handler(event, context):
     reservations = ec.describe_instances(
         Filters=[
-            {'Name': 'tag-key', 'Values': ['backup', 'Backup']},
+            { 'Name': 'tag:Backup', 'Values': ['Yes'] },
         ]
     ).get(
         'Reservations', []
@@ -39,18 +39,26 @@ def lambda_handler(event, context):
                 vol_id, instance['InstanceId'])
 
             snap = ec.create_snapshot(
-                VolumeId=vol_id,
+                VolumeId=vol_id
             )
 
             to_tag[retention_days].append(snap['SnapshotId'])
+            
+            # figure out instance name if there is one
+            instance_name = ""
+            for tag in instance['Tags']:
+                if tag['Key'] != 'Name':
+                    continue
+                else:
+                    instance_name = tag['Value']
 
-            print "Retaining snapshot %s of volume %s from instance %s for %d days" % (
+            print "Retaining snapshot %s of volume %s from instance %s (%s) for %d days" % (
                 snap['SnapshotId'],
                 vol_id,
                 instance['InstanceId'],
+                instance_name,
                 retention_days,
             )
-
 
     for retention_days in to_tag.keys():
         delete_date = datetime.date.today() + datetime.timedelta(days=retention_days)
@@ -59,6 +67,7 @@ def lambda_handler(event, context):
         ec.create_tags(
             Resources=to_tag[retention_days],
             Tags=[
-                {'Key': 'DeleteOn', 'Value': delete_fmt},
+                { 'Key': 'DeleteOn', 'Value': delete_fmt },
+                { 'Key': 'Type', 'Value': 'Automated' },
             ]
         )

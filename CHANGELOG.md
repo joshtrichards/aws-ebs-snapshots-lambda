@@ -1,3 +1,31 @@
+# Change Log
+All notable changes to this project will be documented in this file.
+This project adheres to [Semantic Versioning](http://semver.org/).
+
+## [Unreleased]
+### Added
+- Nothing so far
+### Changed
+- Nothing so far
+### Fixed
+- Nothing so far
+
+## 0.0.3 - 2016-05-18
+### Added
+- Snapshots created by this tool (as opposed to manually) are now indicated
+  by the automatic addition of and setting of the tag "Type" to "Automated"
+  on each created snapshot.
+- Any previously created snapshot can be retained indefinitely by manually 
+  adding the tag "KeepForever" to the snapshot to any value.
+### Changed
+- Cleaned up some code formatting for key/values
+- The instance tag "Backup" must now be set explicitly to "Yes" (rather than just being present with any value)
+- The snapshot manager skips processing of any snapshots lacking the tag 
+  "Type" with a value of "Automated"  
+- The instance Name (a standard AWS tag) is now displayed (in parentheses)
+  after the InstanceID in log output in the snapshot creator
+### Fixed
+- Nothing so far
 
 ## 0.0.2 - 2016-05-18
 ### Added
