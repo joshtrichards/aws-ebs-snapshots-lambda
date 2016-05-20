@@ -11,6 +11,10 @@
 - https://github.com/viyh/aws-scripts/blob/master/lambda_autosnap.py
 - http://www.evergreenitco.com/evergreenit-blog/2016/4/19/aws-ebs-backup-job-run-by-lambda
 
+# Other Relevant Resources (especially if you're going to customize):
+
+- https://boto3.readthedocs.io/en/latest/reference/services/ec2.html
+
 # Files:
 
 Each file implements a single AWS Lambda function.
