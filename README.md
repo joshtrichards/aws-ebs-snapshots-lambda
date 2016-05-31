@@ -2,6 +2,16 @@
 
 This is for managing AWS EC2 EBS volume snapshots. It consists of a snapshot creator and a snapshot manager. 
 
+## Functionality:
+
+- Automatic snapshots (on whatever schedule you prefer)
+- Automated expiration of old snapshots
+- Ability to configure retention period on a per EC2 instance basis (applying to all volumes attached to said instance)
+- Ability to manually tag individual snapshots to be kept indefinitely (regardless of instance retention configuration)
+- Does not require a job/management instance; no resources to provision to run snapshot jobs (leverages AWS Lambda)
+
+## Implementation Details
+
 It is implemented as a set of two Python based functions intended to run in AWS Lambda (which also handles the job scheduling). This makes it self-contained and easier to setup, without any external resources needed.
 
 Configuration is done through AWS tags. It's easy to configure which instances should have their volumes backed up and how long their snapshots should be retained for. It's also possible to tag certain snapshots for indefinite retention.
@@ -20,13 +30,6 @@ Each file implements a single AWS Lambda function.
 
 - ebs-snapshot-creator.py
 - ebs-snapshot-manager.py
-
-## Functionality:
-
-- automatic snapshots (ran on whatever schedule you prefer)
-- automated expiration of old snapshots
-- ability to configure retention period on a per instance basis
-- ability to manually mark individual snapshots to be kept indefinitely regardless of retention configuration
 
 ## Related:
 
