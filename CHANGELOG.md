@@ -7,7 +7,8 @@ All notable changes to this project will be documented in this file. This projec
 
 ### Changed
 - During a job run, every individual snapshot that is triggered, is now displayed
-- The snapshot Description now includes the name of the EC2 instance the volume was attached to at the time the snapshot was created
+- The snapshot Description now includes the Name of the EC2 instance the volume was attached to at the time the snapshot was created
+- The snapshot Description now includes the device name (e.g. "/dev/sda1") on the EC2 instance the volume was attached to at the time the snapshot was created
 
 ### Fixed
 - Nothing so far

@@ -1,8 +1,5 @@
 ## ebs-snapshot-creator.py
 
-- The device name on instance that the snapshotted volume was attached to at time of snapshot job run should be included in the snapshot Description
-  - Add during snapshot instance volume device name tracking to snapshot creator?
-
 - Get notified when Lambda function emits an error - e.g. http://docs.aws.amazon.com/lambda/latest/dg/with-scheduledevents-example.html
 
 - It should be possible to configure and create out-of-region snapshots without external tools (will require addition of support in manager for retention)
