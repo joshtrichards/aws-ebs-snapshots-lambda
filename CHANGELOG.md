@@ -1,6 +1,17 @@
 # Change Log
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 0.0.4 [unreleased]
+### Added
+- Nothing so far
+
+### Changed
+- During a job run, every individual snapshot that is triggered, is now displayed
+- The snapshot Description now includes the name of the EC2 instance the volume was attached to at the time the snapshot was created
+
+### Fixed
+- Nothing so far
+
 ## 0.0.3 - 2016-05-18
 ### Added
 - Snapshots created by this tool (as opposed to manually) are now indicated

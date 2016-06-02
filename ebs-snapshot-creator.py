@@ -35,15 +35,9 @@ def lambda_handler(event, context):
             if dev.get('Ebs', None) is None:
                 continue
             vol_id = dev['Ebs']['VolumeId']
-            print "Found EBS volume %s on instance %s" % (
+            print "\tFound EBS volume %s on instance %s" % (
                 vol_id, instance['InstanceId'])
 
-            snap = ec.create_snapshot(
-                VolumeId=vol_id
-            )
-
-            to_tag[retention_days].append(snap['SnapshotId'])
-            
             # figure out instance name if there is one
             instance_name = ""
             for tag in instance['Tags']:
@@ -51,6 +45,18 @@ def lambda_handler(event, context):
                     continue
                 else:
                     instance_name = tag['Value']
+            
+            description = '%s - %s' % ( instance_name, vol_id )
+
+            # trigger snapshot
+            snap = ec.create_snapshot(
+                VolumeId=vol_id, 
+                Description=description
+                )
+            if (snap):
+                print "\t\tSnapshot %s created for [%s]" % ( snap['SnapshotId'], description )
+
+            to_tag[retention_days].append(snap['SnapshotId'])
 
             print "Retaining snapshot %s of volume %s from instance %s (%s) for %d days" % (
                 snap['SnapshotId'],
