@@ -2,6 +2,8 @@ import boto3
 import collections
 import datetime
 
+region = 'us-west-2'    # region we're running in (should be changed to be auto-determined 
+
 ec = boto3.client('ec2')
 
 def lambda_handler(event, context):
@@ -54,12 +56,11 @@ def lambda_handler(event, context):
                 VolumeId=vol_id, 
                 Description=description
                 )
+            
             if (snap):
-                print "\t\tSnapshot %s created of [%s]" % ( snap['SnapshotId'], description )
-
+                print "\t\tSnapshot %s created in %s of [%s]" % ( snap['SnapshotId'], region, description )
             to_tag[retention_days].append(snap['SnapshotId'])
-
-            print "Retaining snapshot %s of volume %s from instance %s (%s) for %d days" % (
+            print "\t\tRetaining snapshot %s of volume %s from instance %s (%s) for %d days" % (
                 snap['SnapshotId'],
                 vol_id,
                 instance['InstanceId'],

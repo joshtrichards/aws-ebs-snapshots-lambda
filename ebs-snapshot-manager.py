@@ -30,8 +30,7 @@ def lambda_handler(event, context):
     delete_on = datetime.date.today().strftime('%Y-%m-%d')
         # limit snapshots to process to ones marked for deletion on this day
         # AND limit snapshots to process to ones that are automated only
-        # FUTURE: AND exclude automated snapshots marked for permanent retention
-            #         { 'Name': 'tag:KeepForever', 'Values': ['Yes'] },
+        # AND exclude automated snapshots marked for permanent retention
     filters = [
         { 'Name': 'tag:DeleteOn', 'Values': [delete_on] },
         { 'Name': 'tag:Type', 'Values': ['Automated'] },

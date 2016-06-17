@@ -3,7 +3,16 @@ All notable changes to this project will be documented in this file. This projec
 
 ## 0.0.4 [unreleased]
 ### Added
-- Nothing so far
+- WIP: Out-of-region snapshot support
+  - Prototype:
+    - An additional region, in addition to the region an instance is 
+      located in, can be specified in the creator (hardcoded in the 
+      'copy_region' (hardcoded variable). If left empty, no out of 
+      region copy is made.
+    - Problem discovered: snapshot copies can be triggered before the
+      original (source) has completed. This results in snapshots in an
+      "error" state that are unusable. To prevent this, only completed
+      snapshots should be copied.
 
 ### Changed
 - During a job run, every individual snapshot that is triggered, is now displayed

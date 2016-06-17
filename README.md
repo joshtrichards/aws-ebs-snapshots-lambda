@@ -35,6 +35,10 @@ Each file implements a single AWS Lambda function.
 
 - [AWS auto snapshot script by Joe Richards](https://github.com/viyh/aws-scripts/blob/master/lambda_autosnap.py)
 - [AWS EBS Backup Job Run by Lambda by Chris Machler](http://www.evergreenitco.com/evergreenit-blog/2016/4/19/aws-ebs-backup-job-run-by-lambda)
+- [DevOps Backup in Amazon EC2](https://medium.com/aws-activate-startup-blog/devops-backup-in-amazon-ec2-190c6fcce41b#.hyo4nyqur)
+- [AWS volume snapshots across multiple regions](https://mattyboy.net/general/aws-volume-snapshots-across-multiple-regions/)
+- [EBS Snapshots: Crash-Consistent Vs. Application-Consistent](http://www.n2ws.com/blog/ebs-snapshots-crash-consistent-vs-application-consistent.html)
+- [N2WS CPM](http://www.n2ws.com/products-services/pricing-registration.html)
 
 ## Other Relevant Resources (especially if you're going to customize):
 
