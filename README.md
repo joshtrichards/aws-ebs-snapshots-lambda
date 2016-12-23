@@ -39,7 +39,8 @@ Each file implements a single AWS Lambda function.
 - [AWS volume snapshots across multiple regions](https://mattyboy.net/general/aws-volume-snapshots-across-multiple-regions/)
 - [EBS Snapshots: Crash-Consistent Vs. Application-Consistent](http://www.n2ws.com/blog/ebs-snapshots-crash-consistent-vs-application-consistent.html)
 - [N2WS CPM](http://www.n2ws.com/products-services/pricing-registration.html)
-- [lambda-expire-snapshots](https://github.com/RideAmigosCorp/lambda-expire-snapshots)    
+- [lambda-expire-snapshots](https://github.com/RideAmigosCorp/lambda-expire-snapshots)
+- [Rackspace's Snappy for EBS Snapshots](https://github.com/rackerlabs/ebs_snapper) & (http://blog.rackspace.com/automate-ebs-snapshots-with-snapper)
 
 ## Other Relevant Resources (especially if you're going to customize):
 
