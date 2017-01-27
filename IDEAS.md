@@ -22,7 +22,7 @@
 - It should be possible to configure multiple regions to copy (duplicate) snapshots into
 - It should be possible to trigger a web hook (optionally / if configured) every time the creator job runs 
   - e.g. to use with PagerDuty to monitor if a job doesn't check-in every N days/hours/whatever
-- Add JSON for IAM and/or CloudFormation and/or Terraform code and/or CLI/SH for deploying
+- ADDED CFN: Add JSON for IAM and/or CloudFormation and/or Terraform code and/or CLI/SH for deploying
 - It should be possible to trigger snapshots of instance volumes in other regions besides the one that the creator is running in (or should it?)
 
 ## ebs-snapshot-manager.py
@@ -41,7 +41,7 @@
 
 ### P3
 - Trigger a optional (if configured) web hook every time it runs (e.g. to use with PagerDuty to trigger if job doesn't check-in every N days/hours/whatever)
-- Add JSON for IAM and/or CloudFormation and/or Terraform code and/or CLI/SH for deploying
+- ADDED CFN: Add JSON for IAM and/or CloudFormation and/or Terraform code and/or CLI/SH for deploying
 
 ## ebs-snapshot-watcher.py
 
