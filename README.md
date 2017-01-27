@@ -9,6 +9,18 @@ This is for managing AWS EC2 EBS volume snapshots. It consists of a snapshot cre
 - Ability to configure retention period on a per EC2 instance basis (applying to all volumes attached to said instance)
 - Ability to manually tag individual snapshots to be kept indefinitely (regardless of instance retention configuration)
 - Does not require a job/management instance; no resources to provision to run snapshot jobs (leverages AWS Lambda)
+- Ability to snapshot all Volumes attached to a given Instance (Default), and exclude on a per-Volume basis any indivdual Volume (Through the addition of `Backup = No` Tag to Volume)
+- Ability to replicate snapshot to a second AWS Region (As specified by Tag) and remove snapshot from source Region upon successful copy. Tags are replicated from source to destination snapshots
+
+## Tags Configuration
+
+- Instance Level
+	- `Backup` { Yes | No }
+	- `DestinationRegion` { us-west-1 | eu-west-1 | etc. }
+	- `RetentionDays` { 1..x }
+
+- Volume Level
+	- `Backup` { Yes | No } (Default if absent = 'Yes') : Overrides default to exclude a given Volume from snapshot
 
 ## Implementation Details
 
@@ -24,11 +36,40 @@ For the moment, read these links for documentation on how to setup/use. I've ext
 
 Ideas and To Do items are currently tracked in [IDEAS](IDEAS.md).
 
+## IAM Role
+
+The minimal IAM Role for these Lambda Functions is:
+
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+                "ec2:DescribeInstances",
+                "ec2:DescribeVolumes",
+                "ec2:CreateSnapshot",
+                "ec2:CreateTags",
+                "ec2:CopySnapshot",
+                "ec2:DescribeSnapshots",
+                "ec2:DeleteSnapshot"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+```
+
 ## Files:
 
 Each file implements a single AWS Lambda function.
 
 - ebs-snapshot-creator.py
+- ebs-snapshot-offsiter.py
 - ebs-snapshot-manager.py
 
 ## Related:
