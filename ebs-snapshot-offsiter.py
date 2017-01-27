@@ -14,6 +14,7 @@ def lambda_handler(event, context):
 	snapshots = ec.describe_snapshots(
 		Filters=[
 			{ 'Name': 'tag-key', 'Values': ['DestinationRegion'] },
+            { 'Name': 'status', 'Values': ['completed'] },
 		]
 	)
 
@@ -74,7 +75,6 @@ def lambda_handler(event, context):
 			)
 
 			ec.delete_snapshot(
-				DryRun=True,
 				SnapshotId=snapshot['SnapshotId']
 			)
 
