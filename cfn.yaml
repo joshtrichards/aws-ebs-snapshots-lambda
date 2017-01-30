@@ -1,0 +1,456 @@
+Description: |
+  Creates Lambda Functions to create, offsite and age-off EBS Volume Snapshots
+
+Parameters:  
+
+  SnapshotSchedule:
+    Description: Cron expression for the schedule on which Volume Snapshots should be taken
+    Type: String
+    Default: 0 1 * * ? *
+
+  OffsiteSchedule:
+    Description: Cron expression for the schedule on which Volume Snapshots should be off-sited
+    Type: String
+    Default: 0/60 * * * ? *
+
+  DeleteSchedule:
+    Description: Cron expression for the schedule on which Volume Snapshots should be deleted (Aged-Off)
+    Type: String
+    Default: 0 1 * * ? *
+
+Outputs: {}
+
+Resources:
+
+  # Create IAM Role For Lambda Functions
+  LambdaBackupsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: Lambda-Backups-Role
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: Lambda-Backups-Policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:              
+              - Effect: Allow
+                Action:
+                  - lambda:Invoke*
+                Resource:
+                  - "*"
+              - Effect: Allow
+                Action:                  
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - ec2:DescribeInstances
+                  - ec2:DescribeVolumes
+                  - ec2:CreateSnapshot
+                  - ec2:CreateTags
+                  - ec2:CopySnapshot
+                  - ec2:DescribeSnapshots
+                  - ec2:DeleteSnapshot
+                Resource: 
+                  - "*"
+
+  # Create CloudWatch Events To Trigger Lambda Functions
+  CloudWatchEventSnapshotSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: Take-Snapshots
+      ScheduleExpression: !Join [ '', [ 'cron(', !Ref SnapshotSchedule, ')' ] ]
+      Targets:
+        - Arn: !GetAtt [LambdaFunctionTakeSnapshots, Arn]
+          Id: !Ref LambdaFunctionTakeSnapshots
+
+  CloudWatchEventOffsiteSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: Offsite-Snapshots
+      ScheduleExpression: !Join [ '', [ 'cron(', !Ref OffsiteSchedule, ')' ] ]
+      Targets:
+        - Arn: !GetAtt [LambdaFunctionOffSiteSnapshots, Arn]
+          Id: !Ref LambdaFunctionOffSiteSnapshots
+
+  CloudWatchEventDeleteSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: Delete-Snapshots
+      ScheduleExpression: !Join [ '', [ 'cron(', !Ref DeleteSchedule, ')' ] ]
+      Targets:
+        - Arn: !GetAtt [LambdaFunctionDeleteSnapshots, Arn]
+          Id: !Ref LambdaFunctionDeleteSnapshots
+  
+  
+  # Create Lambda Permissions To Link Rules To Functions
+  LambdaFunctionPermissionTakeSnapshots:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: LambdaFunctionTakeSnapshots
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt [CloudWatchEventSnapshotSchedule, Arn]
+
+  LambdaFunctionPermissionOffsiteSnapshots:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: LambdaFunctionOffSiteSnapshots
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt [CloudWatchEventOffsiteSchedule, Arn]
+
+  LambdaFunctionPermissionDeleteSnapshots:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: LambdaFunctionDeleteSnapshots
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt [CloudWatchEventDeleteSchedule, Arn]
+
+  
+  # Create Lambda Functions To Create, Offsite & Delete Snapshots
+  LambdaFunctionOffSiteSnapshots:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: Offsite-Snapshots
+      Description: Invokes EBS Snapshot Off-Siting Process
+      Handler: index.lambda_handler
+      MemorySize: 128
+      Role: !GetAtt [LambdaBackupsRole, Arn]
+      Runtime: python2.7
+      Timeout: 300
+      Code:
+        ZipFile:
+          Fn::Sub: |
+            import boto3
+            import collections
+            import datetime
+            import os
+
+            ec = boto3.client('ec2')
+
+            def lambda_handler(event, context):
+
+              # Get Current Region
+              aws_region = os.getenv('AWS_REGION')
+
+              # Get All SnapShots With 'Offsite' Tag Set
+              snapshots = ec.describe_snapshots(
+                Filters=[
+                  { 'Name': 'tag-key', 'Values': ['DestinationRegion'] },
+                        { 'Name': 'status', 'Values': ['completed'] },
+                ]
+              )
+
+              for snapshot in snapshots['Snapshots']:
+
+                # Reset Our Destination Region
+                destination_region = None
+
+                # Obtain Tags From Source SnapShot
+                for tag in snapshot['Tags']:
+                  
+                  # Obtain Destination Region From Source Snapshot Tag
+                  if tag['Key'] == 'DestinationRegion':
+                    destination_region = tag['Value']
+
+                  # Check If We Need To Do A Copy Or Not
+                  if destination_region == aws_region:
+
+                    print "\tDestination Region %s is the same as current region (%s) - skipping copy" % (
+                      destination_region,
+                      aws_region
+                    )
+
+                    continue
+
+                # Construct ec2 Client For Secondary Region
+                secondary_ec = boto3.client('ec2', region_name=destination_region)
+
+                # Determine If There's An Off-Site Copy Of This SnapShot
+                os_snapshots = secondary_ec.describe_snapshots(
+                  Filters=[
+                    { 'Name': 'tag:SourceSnapshotId', 'Values': [snapshot['SnapshotId']] },
+                    { 'Name': 'status', 'Values': ['pending','completed'] },
+                  ]
+                )
+
+                # We Only Want To Delete Where Snapshot Has Copied Successfully
+                if len(os_snapshots['Snapshots']) >= 1:
+
+                  snapshot_states = [d['State'] for d in os_snapshots['Snapshots']]
+
+                  if 'pending' in snapshot_states:
+                    print "\tThere is at least 1 Snapshot copy pending in %s - skipping delete & copy" % (
+                      destination_region
+                    )
+                    
+                    continue          
+
+                  print "\t\tFound a corresponding Snapshot with Id %s in %s created from Snapshot %s" % (
+                    os_snapshots['Snapshots'][0]['SnapshotId'],
+                    destination_region,       
+                    snapshot['SnapshotId']
+                  )
+
+                  print "Deleting source Snapshot %s from %s" % (
+                    snapshot['SnapshotId'],
+                    aws_region
+                  )
+
+                  ec.delete_snapshot(
+                    SnapshotId=snapshot['SnapshotId']
+                  )
+
+                  continue
+
+                # Create Copy Of Snapshot Because One Doesn't Exist
+                os_snapshot = secondary_ec.copy_snapshot(
+                  SourceRegion=aws_region,
+                  SourceSnapshotId=snapshot['SnapshotId'],
+                  Description=snapshot['Description'],
+                  DestinationRegion=destination_region
+                )
+
+                # If Snapshot Copy Executed Successfully, Copy The Tags
+                if (os_snapshot):
+
+                  print "\t\tSnapshot copy %s created in %s of %s from %s" % (
+                    os_snapshot['SnapshotId'],
+                    destination_region,
+                    snapshot['SnapshotId'],
+                    aws_region
+                  )
+
+                  # Add Tags To Off-Site SnapShot
+                  destination_snapshot_tags = snapshot['Tags'] + [{ 'Key': 'SourceSnapshotId', 'Value': snapshot['SnapshotId'] }]
+                  secondary_ec.create_tags(
+                    Resources=[os_snapshot['SnapshotId']],
+                    Tags=destination_snapshot_tags          
+                  )
+
+                  # Add Tags To Source SnapShot
+                  ec.create_tags(
+                    Resources=[snapshot['SnapshotId']],
+                    Tags=[
+                      { 'Key': 'OffsiteSnapshotId', 'Value': os_snapshot['SnapshotId'] },
+                    ]
+                  )
+  
+  LambdaFunctionTakeSnapshots:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: Create-Snapshots
+      Description: Invokes EBS Snapshot Creation Process
+      Handler: index.lambda_handler
+      MemorySize: 128
+      Role: !GetAtt [LambdaBackupsRole, Arn]
+      Runtime: python2.7
+      Timeout: 300
+      Code:
+        ZipFile:
+          Fn::Sub: |
+            import boto3
+            import collections
+            import datetime
+            import os
+
+            ec = boto3.client('ec2')
+
+            def lambda_handler(event, context):
+              
+              # Get Current Region
+              aws_region = os.getenv('AWS_REGION')  
+              
+              # Determine Which Instances To SnapShot
+              instances = ec.describe_instances(
+                Filters=[
+                  { 'Name': 'tag:Backup', 'Values': ['Yes'] },
+                ]
+              ).get(
+                'Reservations', []
+              )
+              
+              print "Found %d instances that need backing up" % len(instances)
+
+              # Iterate Over Each Instance & SnapShot Volumes Not Explicitly Excluded From Backups
+              for instance in instances:
+
+                # Get Instance Object
+                instance = instance['Instances'][0]
+
+                # Determine Retention Period Based Upon Tags
+                retention_days = 7
+                destination_region = None
+                instance_name = ""
+                for tag in instance['Tags']:
+                  if tag['Key'] == 'RetentionDays' and tag['Value'] > 0:
+                    retention_days = int(tag['Value'])
+
+                  if tag['Key'] == 'DestinationRegion' and len(tag['Value']) > 0:
+                    destination_region = tag['Value']
+
+                  if tag['Key'] == 'Name' and len(tag['Value']) > 0:
+                    instance_name = tag['Value']
+
+                print "Setting SnapShot retention period To %s days" % (retention_days)
+
+                # Determine When We're Going To Delete This SnapShot
+                delete_date = datetime.date.today() + datetime.timedelta(days=retention_days)
+                delete_fmt = delete_date.strftime('%Y-%m-%d')
+
+                # Set Default SnapShot Tags
+                snapshot_tags = [
+                  { 'Key': 'DeleteOn', 'Value': delete_fmt },
+                  { 'Key': 'Type', 'Value': 'Automated' },
+                ]
+
+                # If We Want To Offsite This SnapShot, Set The Appropriate Tag
+                if destination_region != None:
+                  snapshot_tags = snapshot_tags + [{ 'Key': 'DestinationRegion', 'Value': destination_region }]
+
+                # List All Volumes Attached To The Instance
+                for dev in instance['BlockDeviceMappings']:
+                  
+                  # Set Variable Defaults
+                  snapshot_required = True
+                  volume_name = None
+                  
+                  if dev.get('Ebs', None) is None:
+                    continue
+                  vol_id = dev['Ebs']['VolumeId']
+                  dev_name = dev['DeviceName']
+                  
+                  # Get a Volume Object Based Upon Volume ID
+                  volume = ec.describe_volumes(
+                    VolumeIds=[vol_id,]
+                  )['Volumes'][0]         
+
+                  # Set Default SnapShot Description
+                  description = '%s - %s (%s)' % ( 
+                    instance_name, 
+                    vol_id, 
+                    dev_name 
+                  )     
+                  
+                  if 'Tags' in volume:
+                    for tag in volume['Tags']:
+                      
+                      # Determine If Volume Has 'Backup' Flag Set To 'No' & Exclude From SnapShot If It Does
+                      if tag['Key'] == 'Backup' and tag['Value'] == 'No':
+                        snapshot_required = False            
+                      
+                      # Override Default Description With Volume Name If One Specified
+                      if tag['Key'] == 'Name':
+                        description = tag['Value']
+
+                        
+                  # We Don't Want To SnapShot Any Volume Explictly Excluded
+                  if snapshot_required == False:
+                    print "\tIgnoring EBS volume %s (%s) on instance %s - 'Backup' Tag set to 'No'" % (
+                      vol_id, 
+                      dev_name, 
+                      instance['InstanceId']
+                    )
+
+                    continue
+                  
+                  
+                  print "\tFound EBS volume %s (%s) on instance %s - Proceeding with SnapShot" % (
+                    vol_id, 
+                    dev_name, 
+                    instance['InstanceId']
+                  )         
+                    
+                  # Take SnapShot Of Volume
+                  snap = ec.create_snapshot(
+                    VolumeId=vol_id, 
+                    Description=description
+                  )
+                  
+                  if not (snap):
+                    print "\t\tSnapShot operation failed!"
+                    continue
+
+                  print "\t\tSnapshot %s created in %s of [%s]" % ( 
+                    snap['SnapshotId'], 
+                    aws_region, 
+                    description 
+                  )       
+                  
+                  print "\t\tRetaining snapshot %s of volume %s from instance %s (%s) for %d days" % (
+                    snap['SnapshotId'],
+                    vol_id,
+                    instance['InstanceId'],
+                    instance_name,
+                    retention_days,
+                  )
+
+                  # Tag The SnapShot To Facilitate Later Automated Deletion & Offsiting
+                  ec.create_tags(
+                    Resources=[snap['SnapshotId']],
+                    Tags=snapshot_tags
+                  )
+  
+  LambdaFunctionDeleteSnapshots:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: Delete-Snapshots
+      Description: Invokes EBS Snapshot Deletion (Age-Off) Process
+      Handler: index.lambda_handler
+      MemorySize: 128
+      Role: !GetAtt [LambdaBackupsRole, Arn]
+      Runtime: python2.7
+      Timeout: 300
+      Code:
+        ZipFile:
+          Fn::Sub: |
+            import boto3
+            import re
+            import datetime
+
+            ec = boto3.client('ec2')
+
+            """
+            This function looks at *all* snapshots that have a "DeleteOn" tag containing
+            the current day formatted as YYYY-MM-DD. This function should be run at least
+            daily.
+            """
+
+            def lambda_handler(event, context):
+                account_ids = (boto3.client('sts').get_caller_identity()['Account'])
+                
+                delete_on = datetime.date.today().strftime('%Y-%m-%d')
+                    # limit snapshots to process to ones marked for deletion on this day
+                    # AND limit snapshots to process to ones that are automated only
+                    # AND exclude automated snapshots marked for permanent retention
+                filters = [
+                    { 'Name': 'tag:DeleteOn', 'Values': [delete_on] },
+                    { 'Name': 'tag:Type', 'Values': ['Automated'] },
+                ]
+                snapshot_response = ec.describe_snapshots(OwnerIds=[account_ids], Filters=filters)
+
+                for snap in snapshot_response['Snapshots']:
+                    for tag in snap['Tags']:
+                        if tag['Key'] != 'KeepForever':
+                            skipping_this_one = False
+                            continue
+                        else:
+                            skipping_this_one = True
+
+                    if skipping_this_one == True:
+                        print "Skipping snapshot %s (marked KeepForever)" % snap['SnapshotId']
+                        # do nothing else
+                    else:
+                        print "Deleting snapshot %s" % snap['SnapshotId']
+                        ec.delete_snapshot(SnapshotId=snap['SnapshotId'])

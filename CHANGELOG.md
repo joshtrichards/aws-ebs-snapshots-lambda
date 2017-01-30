@@ -1,6 +1,21 @@
 # Change Log
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 0.0.5 - 2017-01-27
+### Added
+- Created new function to offsite SnapShots based upon presence of 'DestinationRegion' Tag
+- All Tags on the Source snapShot will be applied to the copy
+- Ability to exclude individual EBS Volumes
+- Linked original and copied snapshots by Tagging with the other's respective Id
+- Added YAML CFN to create Lambda Functions from 'ebs-snapshot-creator', 'ebs-snapshot-manager' & 'ebs-snapshot-offsiter' along with IAM Roles and CloudWatch Cron triggers
+
+### Changed
+- Automatic determination of curent AWS Region
+- All variables obtained through Tags rather than hard-coded
+
+### Fixed
+- Nothing so far
+
 ## 0.0.4 [unreleased]
 ### Added
 - WIP: Out-of-region snapshot support

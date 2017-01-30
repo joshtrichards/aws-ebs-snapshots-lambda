@@ -6,23 +6,23 @@
   - DONE: Copying a snapshot to an additional region should be possible within the creator (hardcoded in creator)
   - DONE: Enabling snapshot copying out-of-region should be easily configurable in the creator script (albeit still requiring a variable parameter change)
   - DONE: Only copy snapshot out of region if a copy_region is defined in the creator script
-  - The out-of-region/copy snapshot functionality should be in its own dedicated job 
+  - DONE: The out-of-region/copy snapshot functionality should be in its own dedicated job 
     - because snapshots can't be copied until they're in a completed state (and this enables getting closer to that)
     - Job/function is easy to understand (logical point of separation)
-  - Copies of snapshots in the additional region should be tagged in the same manner as in-region snapshots (Automated: Yes, expiration info, etc.)
-  - Enabling the copying (duplication) of a snapshot out-of-region should be configurable on a per instance basis
-  - Out-of-region snapshots should be managed (for expiration/retention) just like in-region snapshots
+  - DONE: Copies of snapshots in the additional region should be tagged in the same manner as in-region snapshots (Automated: Yes, expiration info, etc.)
+  - DONE: Enabling the copying (duplication) of a snapshot out-of-region should be configurable on a per instance basis
+  - DONE: Out-of-region snapshots should be managed (for expiration/retention) just like in-region snapshots
 
 ### P2
 - It should be possible to get automatically notified when the job (a Lambda function) emits an error
   - e.g. http://docs.aws.amazon.com/lambda/latest/dg/with-scheduledevents-example.html
-- The required minimum IAM role policy should be provided
+- DONE: The required minimum IAM role policy should be provided
 
 ### P3
 - It should be possible to configure multiple regions to copy (duplicate) snapshots into
 - It should be possible to trigger a web hook (optionally / if configured) every time the creator job runs 
   - e.g. to use with PagerDuty to monitor if a job doesn't check-in every N days/hours/whatever
-- Add JSON for IAM and/or CloudFormation and/or Terraform code and/or CLI/SH for deploying
+- ADDED CFN: Add JSON for IAM and/or CloudFormation and/or Terraform code and/or CLI/SH for deploying
 - It should be possible to trigger snapshots of instance volumes in other regions besides the one that the creator is running in (or should it?)
 
 ## ebs-snapshot-manager.py
@@ -41,7 +41,7 @@
 
 ### P3
 - Trigger a optional (if configured) web hook every time it runs (e.g. to use with PagerDuty to trigger if job doesn't check-in every N days/hours/whatever)
-- Add JSON for IAM and/or CloudFormation and/or Terraform code and/or CLI/SH for deploying
+- ADDED CFN: Add JSON for IAM and/or CloudFormation and/or Terraform code and/or CLI/SH for deploying
 
 ## ebs-snapshot-watcher.py
 
