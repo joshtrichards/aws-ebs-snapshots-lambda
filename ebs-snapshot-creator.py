@@ -17,12 +17,15 @@ def lambda_handler(event, context):
     ]
   ).get(
     'Reservations', []
-  )[0]['Instances']
+  )
   
   print "Found %d instances that need backing up" % len(instances)
 
   # Iterate Over Each Instance & SnapShot Volumes Not Explicitly Excluded From Backups
   for instance in instances:
+
+    # Get Instance Object
+    instance = instance['Instances'][0]
 
     # Determine Retention Period Based Upon Tags
     retention_days = 7
