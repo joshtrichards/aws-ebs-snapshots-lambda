@@ -2,8 +2,10 @@ import boto3
 import re
 import datetime
 
+
+aws_account = 'XXXX'
+
 ec = boto3.client('ec2')
-iam = boto3.client('iam')
 
 """
 This function looks at *all* snapshots that have a "DeleteOn" tag containing
@@ -12,42 +14,46 @@ daily.
 """
 
 def lambda_handler(event, context):
-    account_ids = list()
-    try:
-        """
-        You can replace this try/except by filling in `account_ids` yourself.
-        Get your account ID with:
-        > import boto3
-        > iam = boto3.client('iam')
-        > print iam.get_user()['User']['Arn'].split(':')[4]
-        """
-        iam.get_user()
-    except Exception as e:
-        # use the exception message to get the account ID the function executes under
-        account_ids.append(re.search(r'(arn:aws:sts::)([0-9]+)', str(e)).groups()[1])
 
-
-    delete_on = datetime.date.today().strftime('%Y-%m-%d')
-        # limit snapshots to process to ones marked for deletion on this day
-        # AND limit snapshots to process to ones that are automated only
+        # Limit snapshots to process to ones that are automated only
         # AND exclude automated snapshots marked for permanent retention
-    filters = [
-        { 'Name': 'tag:DeleteOn', 'Values': [delete_on] },
-        { 'Name': 'tag:Type', 'Values': ['Automated'] },
-    ]
-    snapshot_response = ec.describe_snapshots(OwnerIds=account_ids, Filters=filters)
+
+    snapshot_response = ec.describe_snapshots(
+        OwnerIds = [aws_account], 
+        Filters = [
+            { 'Name': 'tag:Type', 'Values': ['Automated'] },
+        ]
+    )
+
+    today = datetime.datetime.today()
+
+    # Remove snapshots tagged as "KeepForever"
+    automated_snapshots = []
 
     for snap in snapshot_response['Snapshots']:
-        for tag in snap['Tags']:
-            if tag['Key'] != 'KeepForever':
-                skipping_this_one = False
-                continue
-            else:
-                skipping_this_one = True
 
-        if skipping_this_one == True:
-            print "Skipping snapshot %s (marked KeepForever)" % snap['SnapshotId']
-            # do nothing else
-        else:
-            print "Deleting snapshot %s" % snap['SnapshotId']
-            ec.delete_snapshot(SnapshotId=snap['SnapshotId'])
+        skipping_this_one = False
+
+        for tag in snap['Tags']:
+            if tag['Key'] == 'KeepForever':
+              print "Keeping forever snapshot: %s" %snap['SnapshotId']
+              skipping_this_one = True
+
+        if skipping_this_one == False:
+            automated_snapshots.append(snap)
+
+    # Process automated snapshots not tagged as "KeepForever"
+    for snap in automated_snapshots:
+
+        for tag in snap['Tags']:
+            if tag['Key'] == 'DeleteOn':
+
+              delete_on = datetime.datetime.strptime(tag['Value'],'%Y-%m-%d')
+
+              if delete_on <= today:
+                  print "Deleting snapshot %s" % snap['SnapshotId']
+                  ec.delete_snapshot(SnapshotId=snap['SnapshotId'])
+
+
+if __name__ == '__main__':
+    lambda_handler(None, None)
